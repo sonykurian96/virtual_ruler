@@ -3,15 +3,12 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
-const markerHeight = 3.00;
-
 void main() => runApp(MyApp());
 
 class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Flutter Demo',
       theme: ThemeData(primarySwatch: Colors.blue, brightness: Brightness.dark),
       home: MainImageScreen(),
     );
@@ -29,27 +26,61 @@ class _MainImageScreenState extends State<MainImageScreen> {
   PageController? _pageViewController = PageController();
 
   File? selectedImage;
+  TextEditingController _controller = TextEditingController();
+  double markerHeight = 3.0000000000001;
+  int count = 0;
+  double showCase = 3.00;
 
   Future _getImage() async {
     final returnedImage =
         await ImagePicker().getImage(source: ImageSource.camera);
 
     if (returnedImage == null) {
-      print("not taking photo");
       return;
     }
     setState(() {
       selectedImage = File(returnedImage.path);
-      print("it took photo");
     });
   }
 
+  Future openDialog() => showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text(
+            "Enter Reference height (inches)",
+            style: TextStyle(fontSize: 15),
+          ),
+          content: TextField(
+            keyboardType: TextInputType.number,
+            autofocus: true,
+            decoration: const InputDecoration(hintText: "Example : 3.00"),
+            controller: _controller,
+          ),
+          actions: [
+            TextButton(
+                onPressed: () {
+                  Navigator.of(context).pop();
+                  setState(() {
+                    if (_controller.text.isNotEmpty) {
+                      markerHeight = double.parse(_controller.text);
+                      markerHeight += 0.0000000000001;
+                      showCase = markerHeight;
+                    } else {
+                      markerHeight = 3.0000000000001;
+                      showCase = markerHeight;
+                    }
+                  });
+                },
+                child: const Text("Submit"))
+          ],
+        ),
+      );
+
   @override
   Widget build(BuildContext context) {
-    print("another........");
     return Scaffold(
       appBar: AppBar(
-        title: Text("Measure Height"),
+        title: const Text("Measure Height"),
         centerTitle: true,
         elevation: 25,
       ),
@@ -62,23 +93,32 @@ class _MainImageScreenState extends State<MainImageScreen> {
                   Positioned.fill(
                     child: selectedImage != null
                         ? CustomPaint(
+                            foregroundPainter: MyRectPainter(rect: _rect),
                             child: Image.file(
                               selectedImage!,
                             ),
-                            foregroundPainter: MyRectPainter(rect: _rect),
                           )
-                        : Center(
-                            child: ElevatedButton.icon(
-                              style: ElevatedButton.styleFrom(
-                                  elevation: 5, shadowColor: Colors.white),
-                              icon: Icon(Icons.camera),
-                              onPressed: () {
-                                print("tapped");
-                                _getImage();
-                                Future.delayed(Duration(seconds: 10));
-                              },
-                              label: Text("measure"),
-                            ),
+                        : Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Text("Reference Height: ${showCase.toStringAsFixed(2)} in"),
+                              ElevatedButton(
+                                  onPressed: () async {
+                                    await openDialog();
+                                  },
+                                  child: const Text("Change Reference")),
+                              const SizedBox(height: 20),
+                              ElevatedButton.icon(
+                                style: ElevatedButton.styleFrom(
+                                    elevation: 5, shadowColor: Colors.white),
+                                icon: const Icon(Icons.camera),
+                                onPressed: () {
+                                  _getImage();
+                                  //Future.delayed(Duration(seconds: 10));
+                                },
+                                label: const Text("measure"),
+                              ),
+                            ],
                           ),
                   ),
                   Positioned.fill(
@@ -108,29 +148,31 @@ class _MainImageScreenState extends State<MainImageScreen> {
                 SizedBox(
                   height: double.infinity,
                   child: ElevatedButton(
-                    child: Text(
+                    child: const Text(
                       "Back",
-       
                     ),
                     onPressed: () {
                       _pageViewController!.previousPage(
-                          duration: Duration(milliseconds: 151),
+                          duration: const Duration(milliseconds: 151),
                           curve: Curves.ease);
-                      setState(() {
-                        selectedImage = null;
-                      });
+                      count += 1;
+                      if (count > 1) {
+                        setState(() {
+                          selectedImage = null;
+                          count = 0;
+                        });
+                      }
                     },
                   ),
                 ),
-                SizedBox(width: 5),
+                const SizedBox(width: 5),
                 Expanded(
                   child: PageView(
                     controller: _pageViewController,
                     children: <Widget>[
                       ElevatedButton(
-                        child: Text(
+                        child: const Text(
                           "Select Reference",
-                     
                         ),
                         onPressed: () {
                           _referenceRect = _rect;
@@ -145,7 +187,6 @@ class _MainImageScreenState extends State<MainImageScreen> {
                       ElevatedButton(
                         child: Text(
                           "Select Object",
-                 
                         ),
                         onPressed: () {
                           _objectRect = _rect;
@@ -160,18 +201,18 @@ class _MainImageScreenState extends State<MainImageScreen> {
                       ElevatedButton(
                         child: Text(
                           "Show Result",
-                
                         ),
                         onPressed: () async {
                           print("object height: ${_objectRect!.height}");
                           print("reference height: ${_referenceRect!.height}");
+                          print("marker height: $markerHeight");
 
                           var objectLength = _objectRect!.height /
                               (_referenceRect!.height / markerHeight);
-                          
+
                           objectLength =
                               double.parse(objectLength.toStringAsFixed(2));
-                          
+
                           showDialog(
                             context: context,
                             builder: (context) => Dialog(
@@ -186,14 +227,11 @@ class _MainImageScreenState extends State<MainImageScreen> {
                                     ListTile(
                                       leading: Text("Object Height:"),
                                       title: Text("$objectLength"),
-                                      trailing: Text("In"),
+                                      trailing: Text("In (approx)"),
                                     ),
-                               
                                     ElevatedButton(
                                       child: Text(
                                         "Done",
-
-                                      
                                       ),
                                       onPressed: () {
                                         Navigator.pop(context, true);
